@@ -74,167 +74,144 @@
         </div>
     </div>
     <script>
-        // ▼▼▼ 設定項目 ▼▼▼
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyKjDizoL0-YlqFyLWmesy7vJZiKo5a0g6qJuWy3S1uC8KBF5n6GJhEZtfq4yxzSgwzGg/exec';
-        // ▲▲▲ 設定項目 ▲▲▲
+    // ▼▼▼ 設定項目 ▼▼▼
+    const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbytgff0xdVmtHdwNFynBN0lIxgz9X3GHl2hVe_3z2CkcicFzzhF3hxbo4hlf-gdMpoF/exec';
+    // ▲▲▲ 設定項目 ▲▲▲
 
-        const activityListDiv = document.getElementById('activity-list');
-        const loadingDiv = document.getElementById('loading');
-        const modalContainer = document.getElementById('modal-container');
-        const modalTitle = document.getElementById('modal-title');
-        const modalBody = document.getElementById('modal-body');
-        const participantsCache = {};
-        
-        // 学年の並び順を定義
-        const gradeOrder = ['1年', '2年', '3年', '4年', '修士1年', '修士2年', '博士'];
+    const activityListDiv = document.getElementById('activity-list');
+    const loadingDiv = document.getElementById('loading');
+    const modalContainer = document.getElementById('modal-container');
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+    const participantsCache = {};
+    const gradeOrder = ['1年', '2年', '3年', '4年', '修士1年', '修士2年', '博士'];
 
-
-        /**
-         * ページの読み込みが完了したら、活動一覧を取得して表示する
-         */
-        document.addEventListener('DOMContentLoaded', () => {
-            fetch(GAS_WEB_APP_URL)
-                .then(response => {
-                    if (!response.ok) throw new Error('Network response was not ok.');
-                    return response.json();
-                })
-                .then(activities => {
-                    loadingDiv.style.display = 'none';
-                    if (activities.error) {
-                        activityListDiv.innerHTML = `<p class="col-span-full text-center text-red-500">エラー: ${activities.error}</p>`;
-                        return;
-                    }
-                    if (activities.length === 0) {
-                        activityListDiv.innerHTML = `<p class="col-span-full text-center text-gray-500">現在募集中の活動はありません。</p>`;
-                        return;
-                    }
-                    
-                    activities.forEach((activity, index) => {
-                        const card = `
-                            <div class="bg-white rounded-lg shadow-lg p-6 flex flex-col fade-in" style="animation-delay: ${index * 100}ms;">
-                                <h3 class="text-xl font-bold text-sky-700 mb-4 flex-grow">${activity}</h3>
-                                <button onclick="openModal('${activity}')" class="mt-4 w-full bg-sky-500 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-600 transition-colors">
-                                    参加者リストを見る
-                                </button>
-                            </div>
-                        `;
-                        activityListDiv.insertAdjacentHTML('beforeend', card);
-                    });
-                })
-                .catch(error => {
-                    console.error('活動一覧の取得に失敗:', error);
-                    loadingDiv.style.display = 'none';
-                    activityListDiv.innerHTML = `<p class="col-span-full text-center text-red-500">活動一覧の取得に失敗しました。時間をおいて再読み込みしてください。</p>`;
-                });
-        });
-
-        /**
-         * モーダルを開いて詳細を表示する
-         */
-        async function openModal(activityName) {
-            modalContainer.classList.remove('hidden');
-            modalTitle.textContent = activityName;
-            modalBody.innerHTML = '<p class="text-gray-500 text-center">参加者情報を読み込み中...</p>';
-
-            try {
-                let participants = participantsCache[activityName];
-                if (!participants) {
-                    const url = `${GAS_WEB_APP_URL}?action=getDetails&activity=${encodeURIComponent(activityName)}`;
-                    const response = await fetch(url);
-                    if (!response.ok) throw new Error('Network response was not ok.');
-                    participants = await response.json();
-                    if(participants.error) throw new Error(participants.error);
-                    participantsCache[activityName] = participants;
+    document.addEventListener('DOMContentLoaded', () => {
+        fetch(GAS_WEB_APP_URL)
+            .then(response => response.json())
+            .then(activities => {
+                loadingDiv.style.display = 'none';
+                if (activities.error) {
+                    activityListDiv.innerHTML = `<p class="col-span-full text-center text-red-500">エラー: ${activities.error}</p>`;
+                    return;
                 }
-                renderParticipants(participants, activityName);
-            } catch (error) {
-                console.error('詳細情報の取得に失敗:', error);
-                modalBody.innerHTML = `<p class="text-red-500 text-center">詳細情報の取得に失敗しました。</p>`;
+                if (activities.length === 0) {
+                    activityListDiv.innerHTML = `<p class="col-span-full text-center text-gray-500">現在募集中の活動はありません。</p>`;
+                    return;
+                }
+                
+                // ★受け取ったデータ（nameとsheetIdのペア）を元にカードを作成
+                activities.forEach((activity, index) => {
+                    const card = `
+                        <div class="bg-white rounded-lg shadow-lg p-6 flex flex-col fade-in" style="animation-delay: ${index * 100}ms;">
+                            <h3 class="text-xl font-bold text-sky-700 mb-4 flex-grow">${activity.name}</h3>
+                            <button onclick="openModal('${activity.name}', '${activity.sheetId}')" class="mt-4 w-full bg-sky-500 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-600 transition-colors">
+                                参加者リストを見る
+                            </button>
+                        </div>
+                    `;
+                    activityListDiv.insertAdjacentHTML('beforeend', card);
+                });
+            })
+            .catch(error => {
+                console.error('活動一覧の取得に失敗:', error);
+                loadingDiv.style.display = 'none';
+                activityListDiv.innerHTML = `<p class="col-span-full text-center text-red-500">活動一覧の取得に失敗しました。</p>`;
+            });
+    });
+
+    // ★openModalがsheetIdも受け取るように変更
+    async function openModal(activityName, sheetId) {
+        modalContainer.classList.remove('hidden');
+        modalTitle.textContent = activityName;
+        modalBody.innerHTML = '<p class="text-gray-500 text-center">参加者情報を読み込み中...</p>';
+        const cacheKey = `${sheetId}-${activityName}`;
+
+        try {
+            let participants = participantsCache[cacheKey];
+            if (!participants) {
+                // ★リクエスト時にsheetIdも送信する
+                const url = `${GAS_WEB_APP_URL}?action=getDetails&activity=${encodeURIComponent(activityName)}&sheetId=${sheetId}`;
+                const response = await fetch(url);
+                participants = await response.json();
+                if(participants.error) throw new Error(participants.error);
+                participantsCache[cacheKey] = participants;
             }
+            renderParticipants(participants, activityName, sheetId);
+        } catch (error) {
+            console.error('詳細情報の取得に失敗:', error);
+            modalBody.innerHTML = `<p class="text-red-500 text-center">詳細情報の取得に失敗しました。</p>`;
+        }
+    }
+
+    function closeModal() {
+        modalContainer.classList.add('hidden');
+        modalBody.innerHTML = '';
+    }
+
+    function renderParticipants(participants, activityName, sheetId) {
+        if (participants.length === 0) {
+            modalBody.innerHTML = '<p class="text-gray-500 text-center">現在の参加者はいません。</p>';
+            return;
+        }
+        const grades = [...new Set(participants.map(p => p.grade))].sort((a, b) => gradeOrder.indexOf(a) - gradeOrder.indexOf(b));
+        const activityId = (sheetId + activityName).replace(/[^a-zA-Z0-9]/g, '');
+
+        const controlsHTML = `
+            <div class="flex flex-col sm:flex-row gap-2 mb-4">
+                <select id="grade-filter-${activityId}" onchange="applyFilters('${activityName}', '${sheetId}')" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5">
+                    <option value="all">全学年</option>
+                    ${grades.map(grade => `<option value="${grade}">${grade}</option>`).join('')}
+                </select>
+                <select id="sort-order-${activityId}" onchange="applyFilters('${activityName}', '${sheetId}')" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5">
+                    <option value="grade_asc">学年昇順</option>
+                    <option value="grade_desc">学年降順</option>
+                    <option value="default">元の順</option>
+                </select>
+            </div>
+            <ul id="participant-list-${activityId}" class="space-y-2"></ul>
+        `;
+        modalBody.innerHTML = controlsHTML;
+        applyFilters(activityName, sheetId);
+    }
+
+    function applyFilters(activityName, sheetId) {
+        const activityId = (sheetId + activityName).replace(/[^a-zA-Z0-9]/g, '');
+        const selectedGrade = document.getElementById(`grade-filter-${activityId}`).value;
+        const sortOrder = document.getElementById(`sort-order-${activityId}`).value;
+        const cacheKey = `${sheetId}-${activityName}`;
+        const originalParticipants = participantsCache[cacheKey];
+        let filtered = [...originalParticipants];
+
+        if (selectedGrade !== 'all') {
+            filtered = filtered.filter(p => p.grade === selectedGrade);
+        }
+        
+        if (sortOrder === 'grade_asc') {
+            filtered.sort((a, b) => gradeOrder.indexOf(a.grade) - gradeOrder.indexOf(b.grade));
+        } else if (sortOrder === 'grade_desc') {
+            filtered.sort((a, b) => gradeOrder.indexOf(b.grade) - gradeOrder.indexOf(a.grade));
         }
 
-        /**
-         * モーダルを閉じる
-         */
-        function closeModal() {
-            modalContainer.classList.add('hidden');
-            modalBody.innerHTML = ''; // 中身をクリア
+        updateParticipantList(activityId, filtered);
+    }
+
+    function updateParticipantList(activityId, participants) {
+        const listElement = document.getElementById(`participant-list-${activityId}`);
+        if (!listElement) return;
+
+        if (participants.length === 0) {
+            listElement.innerHTML = '<li class="text-center text-gray-500 p-4">該当する参加者はいません。</li>';
+            return;
         }
-
-        /**
-         * 参加者リストとフィルターをモーダル内に描画する
-         */
-        function renderParticipants(participants, activityName) {
-            if (participants.length === 0) {
-                modalBody.innerHTML = '<p class="text-gray-500 text-center">現在の参加者はいません。</p>';
-                return;
-            }
-            const grades = [...new Set(participants.map(p => p.grade))].sort((a, b) => gradeOrder.indexOf(a) - gradeOrder.indexOf(b));
-            const activityId = activityName.replace(/[^a-zA-Z0-9]/g, ''); // ID用の文字列を生成
-
-            const controlsHTML = `
-                <div class="flex flex-col sm:flex-row gap-2 mb-4">
-                    <select id="grade-filter-${activityId}" onchange="applyFilters('${activityName}')" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5">
-                        <option value="all">全学年</option>
-                        ${grades.map(grade => `<option value="${grade}">${grade}</option>`).join('')}
-                    </select>
-                    <select id="sort-order-${activityId}" onchange="applyFilters('${activityName}')" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5">
-                        <option value="grade_asc">学年昇順</option>
-                        <option value="grade_desc">学年降順</option>
-                        <option value="default">元の順</option>
-                    </select>
-                </div>
-                <ul id="participant-list-${activityId}" class="space-y-2"></ul>
-            `;
-            modalBody.innerHTML = controlsHTML;
-            applyFilters(activityName); // 初期表示
-        }
-
-        /**
-         * フィルターとソートを適用する
-         */
-        function applyFilters(activityName) {
-            const activityId = activityName.replace(/[^a-zA-Z0-9]/g, '');
-            const selectedGrade = document.getElementById(`grade-filter-${activityId}`).value;
-            const sortOrder = document.getElementById(`sort-order-${activityId}`).value;
-            
-            const originalParticipants = participantsCache[activityName];
-            let filtered = [...originalParticipants];
-
-            // 学年でフィルター
-            if (selectedGrade !== 'all') {
-                filtered = filtered.filter(p => p.grade === selectedGrade);
-            }
-            
-            // 学年でソート
-            if (sortOrder === 'grade_asc') {
-                filtered.sort((a, b) => gradeOrder.indexOf(a.grade) - gradeOrder.indexOf(b.grade));
-            } else if (sortOrder === 'grade_desc') {
-                filtered.sort((a, b) => gradeOrder.indexOf(b.grade) - gradeOrder.indexOf(a.grade));
-            }
-
-            updateParticipantList(activityId, filtered);
-        }
-
-        /**
-         * 参加者リストの表示を更新する
-         */
-        function updateParticipantList(activityId, participants) {
-            const listElement = document.getElementById(`participant-list-${activityId}`);
-            if (!listElement) return;
-
-            if (participants.length === 0) {
-                listElement.innerHTML = '<li class="text-center text-gray-500 p-4">該当する参加者はいません。</li>';
-                return;
-            }
-            listElement.innerHTML = participants.map(p => 
-                `<li class="border-b py-2 px-1 text-sm flex items-center">
-                    <span class="font-semibold inline-block bg-sky-100 text-sky-800 text-xs px-2 py-1 rounded-full mr-3 w-16 text-center">${p.grade}</span>
-                    <span class="flex-grow">${p.name}</span>
-                    ${p.date ? `<span class="text-xs text-gray-500 ml-2">(${p.date})</span>` : ''}
-                 </li>`
-            ).join('');
-        }
+        listElement.innerHTML = participants.map(p => 
+            `<li class="border-b py-2 px-1 text-sm flex items-center">
+                <span class="font-semibold inline-block bg-sky-100 text-sky-800 text-xs px-2 py-1 rounded-full mr-3 w-16 text-center">${p.grade}</span>
+                <span class="flex-grow">${p.name}</span>
+                ${p.date ? `<span class="text-xs text-gray-500 ml-2">(${p.date})</span>` : ''}
+            </li>`
+        ).join('');
+    }
     </script>
 </body>
 </html>
